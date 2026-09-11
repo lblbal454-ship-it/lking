@@ -8,7 +8,7 @@ export const supabase = url && key
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,
         flowType: 'pkce',
       },
     })
