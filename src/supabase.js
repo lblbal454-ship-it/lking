@@ -8,8 +8,8 @@ export const supabase = url && key
       auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: true,
-        flowType: 'implicit',
+        detectSessionInUrl: false,
+        flowType: 'pkce',
       },
     })
   : null;
