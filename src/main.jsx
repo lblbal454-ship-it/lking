@@ -6,7 +6,7 @@ import { supabase } from "./supabase";
 import "./styles.css";
 
 const livekitConfigured = Boolean(import.meta.env.VITE_LIVEKIT_URL);
-const APP_URL = "https://lking.vercel.app";
+const APP_URL = "https://lking.vercel.app/";
 
 async function liveToken(roomName, identity, canPublish) {
   if (!supabase) throw new Error("Supabase غير متصل.");
@@ -29,41 +29,23 @@ function App() {
 
     let active = true;
 
-    const restoreAuth = async () => {
-      try {
-        const params = new URLSearchParams(window.location.search);
-        const code = params.get("code");
-        const errorDescription = params.get("error_description");
-
-        if (errorDescription) throw new Error(decodeURIComponent(errorDescription));
-
-        if (code) {
-          const { data, error } = await supabase.auth.exchangeCodeForSession(code);
-          if (error) throw error;
-          const { data: current } = await supabase.auth.getSession();
-          if (active) setSession(data?.session || current?.session || null);
-          window.history.replaceState({}, document.title, window.location.pathname);
-          return;
-        }
-
-        const { data, error } = await supabase.auth.getSession();
-        if (error) throw error;
-        if (active) setSession(data?.session || null);
-      } catch (error) {
-        console.error("Lking auth restore error:", error);
-        if (active) setSession(null);
+    supabase.auth.getSession().then(({ data, error }) => {
+      if (error) {
+        console.error("Lking auth session error:", error);
+        return;
       }
-    };
+      if (active) setSession(data?.session || null);
+    });
 
-    restoreAuth();
-
-    const { data } = supabase.auth.onAuthStateChange((_event, nextSession) => {
+    const { data: listener } = supabase.auth.onAuthStateChange((event, nextSession) => {
+      console.log("Lking auth event:", event);
       if (active) setSession(nextSession || null);
+      if (event === "SIGNED_IN" && active) setAuthOpen(false);
     });
 
     return () => {
       active = false;
-      data.subscription.unsubscribe();
+      listener.subscription.unsubscribe();
     };
   }, []);
 
@@ -112,7 +94,7 @@ function Profile({ session, auth }) { return <section className="page center"><i
 
 function Auth({ close, done }) {
   const [signup, setSignup] = useState(false); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [message, setMessage] = useState(""); const [loading, setLoading] = useState(false);
-  const oauth = async (provider) => { if (!supabase) { setMessage("Supabase غير متصل."); return; } try { setLoading(true); setMessage(""); const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: APP_URL } }); if (error) throw error; } catch (e) { setMessage(e?.message || `تعذر تسجيل الدخول عبر ${provider}.`); setLoading(false); } };
+  const oauth = async (provider) => { if (!supabase) { setMessage("Supabase غير متصل."); return; } try { setLoading(true); setMessage(""); const { error } = await supabase.auth.signInWithOAuth({ provider }); if (error) throw error; } catch (e) { setMessage(e?.message || `تعذر تسجيل الدخول عبر ${provider}.`); setLoading(false); } };
   const submit = async () => { if (!supabase) { setMessage("Supabase غير متصل."); return; } if (!email || !password) { setMessage("أدخل البريد الإلكتروني وكلمة المرور."); return; } try { setLoading(true); const result = signup ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: APP_URL } }) : await supabase.auth.signInWithPassword({ email, password }); if (result.error) throw result.error; if (result.data.session) done(result.data.session); else setMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني."); } catch (e) { setMessage(e?.message || "حدث خطأ أثناء تسجيل الدخول."); } finally { setLoading(false); } };
   return <Modal close={close}><div className="auth-screen"><img src="/lking-logo.svg" alt="Lking" className="auth-logo" /><h2>{signup ? "إنشاء حساب" : "تسجيل الدخول"}</h2><button className="oauth google" onClick={() => oauth("google")} disabled={loading}><strong>G</strong><span>المتابعة باستخدام Google</span></button><button className="oauth apple" onClick={() => oauth("apple")} disabled={loading}><strong></strong><span>المتابعة باستخدام Apple</span></button><div className="auth-divider"><span>أو</span></div><input placeholder="البريد الإلكتروني" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /><input placeholder="كلمة المرور" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /><button className="primary auth-submit" onClick={submit} disabled={loading}>{loading ? "انتظر..." : signup ? "إنشاء الحساب" : "دخول"}</button>{message && <p className="auth-message">{message}</p>}<button className="link" onClick={() => { setSignup((v) => !v); setMessage(""); }}>{signup ? "لدي حساب" : "إنشاء حساب جديد"}</button></div></Modal>;
 }
@@ -126,7 +108,7 @@ function LiveRoom({ room, session, close }) {
   return <Modal close={stop}><div className="live-room"><div className="stage" id="remote-stage">{isHost && <video ref={localVideo} autoPlay muted playsInline className="camera" />}{!started && <div className="start-card"><Radio size={45} /><h2>{isHost ? "ابدأ بثك الآن" : "انضم إلى البث"}</h2>{isHost && <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="عنوان البث" />}<button className="primary" onClick={connect}>{isHost ? "تشغيل الكاميرا والمايك" : "دخول البث"}</button></div>}</div>{started && <div className="live-controls"><button onClick={toggleMic}>{muted ? <MicOff /> : <Mic />}</button><button onClick={toggleCamera}>{camera ? <Video /> : <VideoOff />}</button><b>● LIVE</b><button className="end" onClick={stop}>{isHost ? "إنهاء البث" : "خروج"}</button></div>}<div className="chat"><div>{chat.map((m) => <p key={m.id}><b>{m.user_id.slice(0,6)}</b> {m.message}</p>)}</div>{started && <div className="chat-send"><input value={message} onChange={(e) => setMessage(e.target.value)} onKeyDown={(e) => e.key === "Enter" && sendMessage()} placeholder="اكتب تعليقًا..." /><button onClick={sendMessage}><Send /></button></div>}</div>{error && <p className="error">{error}</p>}</div></Modal>;
 }
 
-function Studio({ close }) { return <Modal close={close}><h2>Creator Studio</h2><div className="stats"><div><BarChart3 /><b>0</b><small>مشاهدات</small></div><div><Users /><b>0</b><small>متابعون</small></div><div><Gift /><b>500</b><small>مكافآت البداية</small></div></div><div className="studio-box"><b>برنامج صناع المحتوى</b><p>انشر باستمرار، ابنِ جمهورك.</p></div></Modal>; }
+function Studio({ close }) { return <Modal close={close}><h2>Creator Studio</h2><div className="stats"><div><BarChart3 /><b>0</b><small>مشاهدات</small></div><div><Users /><b>0</b><small>متابعون</small></div><div><Gift /><b>500</b><small>مكافآت البداية</small></div></div><div className="studio-box"><b>برنامج صناع المحتوى</b><p>انشر باستمرار، ادخل التحديات، وابنِ جمهورك.</p></div></Modal>; }
 function Modal({ children, close }) { return <div className="modal"><div className="modal-box"><button className="close" onClick={close}><X /></button>{children}</div></div>; }
 
 createRoot(document.getElementById("root")).render(<App />);
