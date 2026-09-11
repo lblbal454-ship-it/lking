@@ -1,5 +1,5 @@
-import React, { useEffect, useRef, useState } from 'react';
-import { createRoot } from 'react-dom/client';
+import React, { useEffect, useRef, useState } from "react";
+import { createRoot } from "react-dom/client";
 import {
   Home,
   Compass,
@@ -20,17 +20,16 @@ import {
   Mic,
   MicOff,
   Video,
-  VideoOff
-} from 'lucide-react';
-
+  VideoOff,
+} from "lucide-react";
 import {
   Room,
   RoomEvent,
-  createLocalTracks
-} from 'livekit-client';
+  createLocalTracks,
+} from "livekit-client";
 
-import { supabase } from './supabase';
-import './styles.css';
+import { supabase } from "./supabase";
+import "./styles.css";
 
 const livekitConfigured = Boolean(
   import.meta.env.VITE_LIVEKIT_URL
@@ -38,17 +37,17 @@ const livekitConfigured = Boolean(
 
 async function liveToken(roomName, identity, canPublish) {
   if (!supabase) {
-    throw new Error('Supabase غير متصل.');
+    throw new Error("Supabase غير متصل.");
   }
 
   const { data, error } = await supabase.functions.invoke(
-    'livekit-token',
+    "livekit-token",
     {
       body: {
         roomName,
         identity,
-        canPublish
-      }
+        canPublish,
+      },
     }
   );
 
@@ -57,7 +56,7 @@ async function liveToken(roomName, identity, canPublish) {
   }
 
   if (!data?.token) {
-    throw new Error('لم يتم الحصول على LiveKit token.');
+    throw new Error("لم يتم الحصول على LiveKit Token.");
   }
 
   return data.token;
@@ -69,31 +68,27 @@ async function liveToken(roomName, identity, canPublish) {
 
 function App() {
   const [session, setSession] = useState(null);
-  const [tab, setTab] = useState('home');
+  const [tab, setTab] = useState("home");
   const [posts, setPosts] = useState([]);
-  const [authOpen, setAuthOpen] = useState(false);
+  const [auth, setAuth] = useState(false);
   const [liveRoom, setLiveRoom] = useState(null);
   const [studio, setStudio] = useState(false);
 
   useEffect(() => {
     if (!supabase) return;
 
-    supabase.auth
-      .getSession()
-      .then(({ data }) => {
-        setSession(data?.session || null);
-      });
+    supabase.auth.getSession().then(({ data }) => {
+      setSession(data.session);
+    });
 
     const {
-      data: { subscription }
-    } = supabase.auth.onAuthStateChange(
-      (_event, newSession) => {
-        setSession(newSession);
-      }
-    );
+      data: subscriptionData,
+    } = supabase.auth.onAuthStateChange((_event, sessionData) => {
+      setSession(sessionData);
+    });
 
     return () => {
-      subscription.unsubscribe();
+      subscriptionData.subscription.unsubscribe();
     };
   }, []);
 
@@ -101,31 +96,29 @@ function App() {
     if (!supabase) return;
 
     const { data, error } = await supabase
-      .from('creator_posts')
+      .from("creator_posts")
       .select(
-        'id,media_url,caption,views,likes,comments,creator_id'
+        "id,media_url,caption,views,likes,creator_id,created_at"
       )
-      .eq('status', 'published')
-      .order('created_at', {
-        ascending: false
-      })
+      .eq("status", "published")
+      .order("created_at", { ascending: false })
       .limit(30);
 
-    if (error) {
-      console.error('Posts error:', error);
-      return;
+    if (!error) {
+      setPosts(data || []);
     }
-
-    setPosts(data || []);
   };
 
   useEffect(() => {
     loadPosts();
   }, [session]);
 
+  const openAuth = () => {
+    setAuth(true);
+  };
+
   return (
     <div className="app">
-
       <header>
         <div className="logo">
           <b>L</b>
@@ -140,15 +133,12 @@ function App() {
                 Studio
               </button>
 
-              <button
-                onClick={() => supabase?.auth.signOut()}
-                title="تسجيل الخروج"
-              >
+              <button onClick={() => supabase?.auth.signOut()}>
                 <LogOut />
               </button>
             </>
           ) : (
-            <button onClick={() => setAuthOpen(true)}>
+            <button onClick={openAuth}>
               <LogIn />
               دخول
             </button>
@@ -157,59 +147,59 @@ function App() {
       </header>
 
       <main>
-        {tab === 'home' && (
+        {tab === "home" && (
           <Feed
             posts={posts}
             session={session}
-            auth={() => setAuthOpen(true)}
+            auth={openAuth}
           />
         )}
 
-        {tab === 'explore' && (
+        {tab === "explore" && (
           <Explore posts={posts} />
         )}
 
-        {tab === 'live' && (
+        {tab === "live" && (
           <Live
             session={session}
-            auth={() => setAuthOpen(true)}
+            auth={openAuth}
             open={(room) => setLiveRoom(room)}
           />
         )}
 
-        {tab === 'create' && (
+        {tab === "create" && (
           <Create
             session={session}
-            auth={() => setAuthOpen(true)}
+            auth={openAuth}
             reload={loadPosts}
-            live={() => setTab('live')}
+            live={() => setTab("live")}
           />
         )}
 
-        {tab === 'profile' && (
+        {tab === "profile" && (
           <Profile
             session={session}
-            auth={() => setAuthOpen(true)}
+            auth={openAuth}
           />
         )}
       </main>
 
       <nav>
         {[
-          [Home, 'الرئيسية', 'home'],
-          [Compass, 'اكتشف', 'explore'],
-          [Plus, '', 'create'],
-          [Radio, 'مباشر', 'live'],
-          [User, 'حسابي', 'profile']
+          [Home, "الرئيسية", "home"],
+          [Compass, "اكتشف", "explore"],
+          [Plus, "", "create"],
+          [Radio, "مباشر", "live"],
+          [User, "حسابي", "profile"],
         ].map(([Icon, label, target], index) => (
           <button
             key={target}
             className={
               index === 2
-                ? `plus ${tab === target ? 'active' : ''}`
+                ? `plus ${tab === target ? "active" : ""}`
                 : tab === target
-                  ? 'active'
-                  : ''
+                ? "active"
+                : ""
             }
             onClick={() => setTab(target)}
           >
@@ -219,12 +209,12 @@ function App() {
         ))}
       </nav>
 
-      {authOpen && (
+      {auth && (
         <Auth
-          close={() => setAuthOpen(false)}
+          close={() => setAuth(false)}
           done={(newSession) => {
             setSession(newSession);
-            setAuthOpen(false);
+            setAuth(false);
           }}
         />
       )}
@@ -242,7 +232,6 @@ function App() {
           close={() => setStudio(false)}
         />
       )}
-
     </div>
   );
 }
@@ -265,17 +254,20 @@ function Feed({ posts, session, auth }) {
       return;
     }
 
-    if (!supabase || !post) return;
-
     const { error } = await supabase
-      .from('post_likes')
+      .from("post_likes")
       .insert({
         user_id: session.user.id,
-        post_id: post.id
+        post_id: post.id,
       });
 
-    if (error) {
-      console.error('Like error:', error);
+    if (!error) {
+      await supabase
+        .from("creator_posts")
+        .update({
+          likes: (post.likes || 0) + 1,
+        })
+        .eq("id", post.id);
     }
   };
 
@@ -283,15 +275,13 @@ function Feed({ posts, session, auth }) {
     <section
       className="feed"
       onWheel={(event) => {
-        if (event.deltaY > 15 && posts.length > 1) {
+        if (event.deltaY > 15) {
           setIndex((value) => value + 1);
         }
       }}
     >
-
       {post ? (
         <article className="post">
-
           <video
             src={post.media_url}
             controls
@@ -304,7 +294,6 @@ function Feed({ posts, session, auth }) {
           </div>
 
           <div className="actions">
-
             <button onClick={likePost}>
               <Heart />
               <span>{post.likes || 0}</span>
@@ -315,23 +304,11 @@ function Feed({ posts, session, auth }) {
               <span>تعليقات</span>
             </button>
 
-            <button
-              onClick={async () => {
-                try {
-                  await navigator.clipboard.writeText(
-                    window.location.href
-                  );
-                } catch {
-                  // Clipboard may be blocked by browser.
-                }
-              }}
-            >
+            <button>
               <Share2 />
               <span>مشاركة</span>
             </button>
-
           </div>
-
         </article>
       ) : (
         <div className="empty">
@@ -341,7 +318,6 @@ function Feed({ posts, session, auth }) {
           </p>
         </div>
       )}
-
     </section>
   );
 }
@@ -353,7 +329,6 @@ function Feed({ posts, session, auth }) {
 function Explore({ posts }) {
   return (
     <section className="page">
-
       <h1>اكتشف</h1>
 
       <p>
@@ -361,7 +336,6 @@ function Explore({ posts }) {
       </p>
 
       <div className="grid">
-
         {posts.map((post) => (
           <video
             key={post.id}
@@ -371,9 +345,7 @@ function Explore({ posts }) {
             controls
           />
         ))}
-
       </div>
-
     </section>
   );
 }
@@ -384,108 +356,80 @@ function Explore({ posts }) {
 
 function Live({ session, auth, open }) {
   const [rooms, setRooms] = useState([]);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!supabase) {
-      setLoading(false);
-      return;
-    }
+    if (!supabase) return;
 
-    let mounted = true;
-
-    const getRooms = async () => {
-      const { data, error } = await supabase
-        .from('live_rooms')
-        .select('*')
-        .eq('status', 'live')
-        .order('started_at', {
-          ascending: false
+    const loadRooms = async () => {
+      const { data } = await supabase
+        .from("live_rooms")
+        .select("*")
+        .eq("status", "live")
+        .order("started_at", {
+          ascending: false,
         });
 
-      if (error) {
-        console.error('Live rooms error:', error);
-      }
-
-      if (mounted) {
-        setRooms(data || []);
-        setLoading(false);
-      }
+      setRooms(data || []);
     };
 
-    getRooms();
+    loadRooms();
 
     const channel = supabase
-      .channel('lking-live-rooms')
+      .channel("live-rooms")
       .on(
-        'postgres_changes',
+        "postgres_changes",
         {
-          event: '*',
-          schema: 'public',
-          table: 'live_rooms'
+          event: "*",
+          schema: "public",
+          table: "live_rooms",
         },
-        () => {
-          getRooms();
-        }
+        loadRooms
       )
       .subscribe();
 
     return () => {
-      mounted = false;
       supabase.removeChannel(channel);
     };
   }, []);
 
   return (
     <section className="page">
-
       <div className="row">
-
         <div>
           <h1>البث المباشر</h1>
 
           <p>
-            بث حقيقي عبر LiveKit مع غرفة ومشاهدين ودردشة.
+            بث حقيقي عبر LiveKit مع غرفة
+            ومشاهدين ودردشة.
           </p>
         </div>
 
         <button
           className="primary"
-          onClick={() => {
-            if (session) {
-              open('create');
-            } else {
-              auth();
-            }
-          }}
+          onClick={() =>
+            session ? open("create") : auth()
+          }
         >
           <Radio />
           ابدأ بثًا
         </button>
-
       </div>
 
       {!livekitConfigured && (
         <div className="warning">
-          أضف VITE_LIVEKIT_URL في Vercel ثم أعد النشر.
+          أضف VITE_LIVEKIT_URL ثم انشر Edge
+          Function قبل تشغيل البث.
         </div>
       )}
 
-      {loading ? (
-        <div className="empty">
-          جاري تحميل البث...
-        </div>
-      ) : rooms.length > 0 ? (
-
+      {rooms.length > 0 ? (
         <div className="room-grid">
-
           {rooms.map((room) => (
             <button
               className="room"
               key={room.id}
               onClick={() => open(room)}
             >
-
               <span>LIVE</span>
 
               <Radio />
@@ -495,39 +439,33 @@ function Live({ session, auth, open }) {
               <small>
                 {room.viewer_count || 0} مشاهد
               </small>
-
             </button>
           ))}
-
         </div>
-
       ) : (
-
         <div className="empty">
           لا يوجد بث مباشر الآن.
+          <br />
           كن أول من يبدأ.
         </div>
-
       )}
-
     </section>
   );
 }
 
 /* =========================
-   CREATE POST
+   CREATE
 ========================= */
 
 function Create({
   session,
   auth,
   reload,
-  live
+  live,
 }) {
   const [file, setFile] = useState(null);
-  const [caption, setCaption] = useState('');
-  const [message, setMessage] = useState('');
-  const [uploading, setUploading] = useState(false);
+  const [caption, setCaption] = useState("");
+  const [message, setMessage] = useState("");
 
   const publish = async () => {
     if (!session) {
@@ -535,22 +473,21 @@ function Create({
       return;
     }
 
-    if (!supabase) {
-      setMessage('Supabase غير متصل.');
+    if (!file) {
+      setMessage("اختر فيديو أولًا.");
       return;
     }
 
-    if (!file) {
-      setMessage('اختر فيديو أولًا.');
+    if (!supabase) {
+      setMessage("Supabase غير متصل.");
       return;
     }
 
     try {
-      setUploading(true);
-      setMessage('');
-
-      const safeName = file.name
-        .replace(/[^a-zA-Z0-9._-]/g, '_');
+      const safeName = file.name.replace(
+        /[^a-zA-Z0-9._-]/g,
+        "_"
+      );
 
       const path =
         `${session.user.id}/` +
@@ -558,66 +495,53 @@ function Create({
 
       const { error: uploadError } =
         await supabase.storage
-          .from('videos')
-          .upload(path, file, {
-            cacheControl: '3600',
-            upsert: false
-          });
+          .from("videos")
+          .upload(path, file);
 
       if (uploadError) {
         throw uploadError;
       }
 
-      const {
-        data: publicData
-      } = supabase.storage
-        .from('videos')
-        .getPublicUrl(path);
+      const { data: publicData } =
+        supabase.storage
+          .from("videos")
+          .getPublicUrl(path);
 
       const { error: postError } =
         await supabase
-          .from('creator_posts')
+          .from("creator_posts")
           .insert({
             creator_id: session.user.id,
             media_url: publicData.publicUrl,
             caption,
-            status: 'published'
+            status: "published",
           });
 
       if (postError) {
         throw postError;
       }
 
-      setMessage('تم نشر الفيديو بنجاح.');
-
+      setMessage("تم نشر الفيديو بنجاح.");
       setFile(null);
-      setCaption('');
+      setCaption("");
 
       await reload();
-
     } catch (error) {
-      console.error(error);
-
       setMessage(
         error?.message ||
-        'حدث خطأ أثناء نشر الفيديو.'
+          "حدث خطأ أثناء نشر الفيديو."
       );
-    } finally {
-      setUploading(false);
     }
   };
 
   return (
     <section className="create">
-
       <div>
-
         <Upload size={50} />
 
         <h1>انشر على Lking</h1>
 
         <label className="picker">
-
           اختيار فيديو
 
           <input
@@ -629,12 +553,11 @@ function Create({
               );
             }}
           />
-
         </label>
 
         {file && (
           <p>
-            الملف المختار: {file.name}
+            الفيديو المختار: {file.name}
           </p>
         )}
 
@@ -649,11 +572,8 @@ function Create({
         <button
           className="primary"
           onClick={publish}
-          disabled={uploading}
         >
-          {uploading
-            ? 'جاري النشر...'
-            : 'نشر الفيديو'}
+          نشر الفيديو
         </button>
 
         <button onClick={live}>
@@ -661,12 +581,8 @@ function Create({
           بث مباشر
         </button>
 
-        {message && (
-          <p>{message}</p>
-        )}
-
+        {message && <p>{message}</p>}
       </div>
-
     </section>
   );
 }
@@ -678,21 +594,18 @@ function Create({
 function Profile({ session, auth }) {
   return (
     <section className="page center">
-
-      <div className="avatar">
-        L
-      </div>
+      <div className="avatar">L</div>
 
       <h1>
         {session
-          ? 'حسابك'
-          : 'كن صانع محتوى على Lking'}
+          ? "حسابك"
+          : "كن صانع محتوى على Lking"}
       </h1>
 
       <p>
         {session
           ? session.user.email
-          : 'انشر، ابنِ جمهورك وشارك في البث المباشر.'}
+          : "انشر، ابنِ جمهورك وشارك في البث المباشر."}
       </p>
 
       {!session && (
@@ -705,7 +618,6 @@ function Profile({ session, auth }) {
       )}
 
       <div className="pitch">
-
         <Users />
 
         <div>
@@ -715,9 +627,7 @@ function Profile({ session, auth }) {
             تحديات ومكافآت وفرص لتحقيق الدخل.
           </small>
         </div>
-
       </div>
-
     </section>
   );
 }
@@ -728,68 +638,59 @@ function Profile({ session, auth }) {
 
 function Auth({ close, done }) {
   const [signup, setSignup] = useState(false);
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [message, setMessage] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [message, setMessage] = useState("");
 
-  const go = async () => {
+  const submit = async () => {
     if (!supabase) {
-      setMessage('اربط Supabase أولًا.');
+      setMessage("اربط Supabase أولًا.");
       return;
     }
 
     if (!email || !password) {
       setMessage(
-        'أدخل البريد الإلكتروني وكلمة المرور.'
+        "أدخل البريد الإلكتروني وكلمة المرور."
       );
       return;
     }
 
     try {
-      setLoading(true);
-      setMessage('');
-
       const result = signup
         ? await supabase.auth.signUp({
             email,
-            password
+            password,
           })
         : await supabase.auth.signInWithPassword({
             email,
-            password
+            password,
           });
 
       if (result.error) {
-        setMessage(result.error.message);
-        return;
+        throw result.error;
       }
 
-      if (result.data?.session) {
+      if (result.data.session) {
         done(result.data.session);
       } else {
         setMessage(
-          'تم إنشاء الحساب. تحقق من بريدك الإلكتروني.'
+          "تم إنشاء الحساب. تحقق من بريدك الإلكتروني."
         );
       }
-
     } catch (error) {
       setMessage(
         error?.message ||
-        'حدث خطأ.'
+          "حدث خطأ أثناء تسجيل الدخول."
       );
-    } finally {
-      setLoading(false);
     }
   };
 
   return (
     <Modal close={close}>
-
       <h2>
         {signup
-          ? 'إنشاء حساب'
-          : 'تسجيل الدخول'}
+          ? "إنشاء حساب"
+          : "تسجيل الدخول"}
       </h2>
 
       <input
@@ -811,32 +712,25 @@ function Auth({ close, done }) {
 
       <button
         className="primary"
-        onClick={go}
-        disabled={loading}
+        onClick={submit}
       >
-        {loading
-          ? 'انتظر...'
-          : signup
-            ? 'إنشاء الحساب'
-            : 'دخول'}
+        {signup
+          ? "إنشاء الحساب"
+          : "دخول"}
       </button>
 
-      {message && (
-        <p>{message}</p>
-      )}
+      {message && <p>{message}</p>}
 
       <button
         className="link"
-        onClick={() => {
-          setSignup((value) => !value);
-          setMessage('');
-        }}
+        onClick={() =>
+          setSignup((value) => !value)
+        }
       >
         {signup
-          ? 'لدي حساب'
-          : 'إنشاء حساب جديد'}
+          ? "لدي حساب"
+          : "إنشاء حساب جديد"}
       </button>
-
     </Modal>
   );
 }
@@ -848,55 +742,42 @@ function Auth({ close, done }) {
 function LiveRoom({
   room,
   session,
-  close
+  close,
 }) {
   const localVideo = useRef(null);
   const roomRef = useRef(null);
   const chatSub = useRef(null);
 
-  const isHost = room === 'create';
+  const isHost = room === "create";
 
   const [roomId, setRoomId] = useState(
     isHost ? null : room.id
   );
 
-  const [started, setStarted] = useState(false);
+  const [started, setStarted] =
+    useState(false);
 
   const [title, setTitle] = useState(
-    isHost
-      ? 'بث Lking'
-      : room.title
+    isHost ? "بث Lking" : room.title
   );
 
   const [chat, setChat] = useState([]);
-
-  const [message, setMessage] = useState('');
-
+  const [message, setMessage] = useState("");
   const [muted, setMuted] = useState(false);
-
   const [camera, setCamera] = useState(true);
-
-  const [error, setError] = useState('');
+  const [error, setError] = useState("");
 
   const connect = async () => {
     try {
-      setError('');
-
-      if (!supabase) {
+      if (!supabase || !session) {
         throw new Error(
-          'Supabase غير متصل.'
-        );
-      }
-
-      if (!session) {
-        throw new Error(
-          'يجب تسجيل الدخول.'
+          "يجب تسجيل الدخول أولًا."
         );
       }
 
       if (!livekitConfigured) {
         throw new Error(
-          'VITE_LIVEKIT_URL غير مضبوط.'
+          "VITE_LIVEKIT_URL غير مضبوط."
         );
       }
 
@@ -905,11 +786,12 @@ function LiveRoom({
       if (isHost && !id) {
         const { data, error: createError } =
           await supabase
-            .from('live_rooms')
+            .from("live_rooms")
             .insert({
               host_id: session.user.id,
               title,
-              status: 'live'
+              category: "عام",
+              status: "live",
             })
             .select()
             .single();
@@ -924,7 +806,7 @@ function LiveRoom({
 
       if (!id) {
         throw new Error(
-          'غرفة البث غير موجودة.'
+          "غرفة البث غير موجودة."
         );
       }
 
@@ -934,35 +816,27 @@ function LiveRoom({
         isHost
       );
 
-      const liveRoomInstance = new Room();
+      const livekitRoom = new Room();
 
-      roomRef.current = liveRoomInstance;
+      roomRef.current = livekitRoom;
 
-      liveRoomInstance.on(
+      livekitRoom.on(
         RoomEvent.TrackSubscribed,
         (track) => {
-          if (track.kind !== 'video') {
-            return;
-          }
+          if (track.kind === "video") {
+            const element = track.attach();
 
-          const element =
-            track.attach();
+            element.className =
+              "remote-video";
 
-          element.className =
-            'remote-video';
-
-          const stage =
-            document.getElementById(
-              'remote-stage'
-            );
-
-          if (stage) {
-            stage.appendChild(element);
+            document
+              .getElementById("remote-stage")
+              ?.appendChild(element);
           }
         }
       );
 
-      await liveRoomInstance.connect(
+      await livekitRoom.connect(
         import.meta.env.VITE_LIVEKIT_URL,
         token
       );
@@ -971,21 +845,21 @@ function LiveRoom({
         const tracks =
           await createLocalTracks({
             audio: true,
-            video: true
+            video: true,
           });
 
         for (const track of tracks) {
-          await liveRoomInstance.localParticipant.publishTrack(
+          await livekitRoom.localParticipant.publishTrack(
             track
           );
 
           if (
-            track.kind === 'video' &&
+            track.kind === "video" &&
             localVideo.current
           ) {
             localVideo.current.srcObject =
               new MediaStream([
-                track.mediaStreamTrack
+                track.mediaStreamTrack,
               ]);
           }
         }
@@ -993,57 +867,46 @@ function LiveRoom({
 
       setStarted(true);
 
-      chatSub.current =
-        supabase
-          .channel(`chat-${id}`)
-          .on(
-            'postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'live_chat',
-              filter: `room_id=eq.${id}`
-            },
-            (payload) => {
-              setChat((current) => [
-                ...current,
-                payload.new
-              ]);
-            }
-          )
-          .subscribe();
-
-    } catch (error) {
-      console.error(error);
-
+      chatSub.current = supabase
+        .channel(`chat-${id}`)
+        .on(
+          "postgres_changes",
+          {
+            event: "INSERT",
+            schema: "public",
+            table: "live_chat",
+            filter: `room_id=eq.${id}`,
+          },
+          (payload) => {
+            setChat((current) => [
+              ...current,
+              payload.new,
+            ]);
+          }
+        )
+        .subscribe();
+    } catch (connectError) {
       setError(
-        error?.message ||
-        'تعذر الاتصال بالبث.'
+        connectError?.message ||
+          "فشل الاتصال بالبث."
       );
     }
   };
 
   const stop = async () => {
     try {
-      if (
-        isHost &&
-        roomId &&
-        supabase
-      ) {
+      if (isHost && roomId && supabase) {
         await supabase
-          .from('live_rooms')
+          .from("live_rooms")
           .update({
-            status: 'ended',
+            status: "ended",
             ended_at:
-              new Date().toISOString()
+              new Date().toISOString(),
           })
-          .eq('id', roomId);
+          .eq("id", roomId);
       }
 
-      if (
-        chatSub.current &&
-        supabase
-      ) {
+      if (chatSub.current && supabase) {
         await supabase.removeChannel(
           chatSub.current
         );
@@ -1052,52 +915,47 @@ function LiveRoom({
       if (roomRef.current) {
         await roomRef.current.disconnect();
       }
-
     } finally {
       close();
     }
   };
 
-  const send = async () => {
-    if (!message.trim()) return;
-    if (!roomId) return;
-    if (!session) return;
-    if (!supabase) return;
-
-    const { error: sendError } =
-      await supabase
-        .from('live_chat')
-        .insert({
-          room_id: roomId,
-          user_id: session.user.id,
-          message: message.trim()
-        });
-
-    if (sendError) {
-      setError(sendError.message);
+  const sendMessage = async () => {
+    if (!message.trim() || !roomId) {
       return;
     }
 
-    setMessage('');
+    if (!supabase || !session) {
+      return;
+    }
+
+    const { error: sendError } =
+      await supabase
+        .from("live_chat")
+        .insert({
+          room_id: roomId,
+          user_id: session.user.id,
+          message,
+        });
+
+    if (!sendError) {
+      setMessage("");
+    }
   };
 
   const toggleMic = async () => {
-    if (!roomRef.current) return;
-
     const next = !muted;
 
-    await roomRef.current.localParticipant
+    await roomRef.current?.localParticipant
       .setMicrophoneEnabled(!next);
 
     setMuted(next);
   };
 
   const toggleCamera = async () => {
-    if (!roomRef.current) return;
-
     const next = !camera;
 
-    await roomRef.current.localParticipant
+    await roomRef.current?.localParticipant
       .setCameraEnabled(next);
 
     setCamera(next);
@@ -1105,14 +963,11 @@ function LiveRoom({
 
   return (
     <Modal close={stop}>
-
       <div className="live-room">
-
         <div
           className="stage"
           id="remote-stage"
         >
-
           {isHost && (
             <video
               ref={localVideo}
@@ -1125,13 +980,12 @@ function LiveRoom({
 
           {!started && (
             <div className="start-card">
-
               <Radio size={45} />
 
               <h2>
                 {isHost
-                  ? 'ابدأ بثك الآن'
-                  : 'انضم إلى البث'}
+                  ? "ابدأ بثك الآن"
+                  : "انضم إلى البث"}
               </h2>
 
               {isHost && (
@@ -1149,28 +1003,25 @@ function LiveRoom({
                 onClick={connect}
               >
                 {isHost
-                  ? 'تشغيل الكاميرا والمايك'
-                  : 'دخول البث'}
+                  ? "تشغيل الكاميرا والمايك"
+                  : "دخول البث"}
               </button>
-
             </div>
           )}
-
         </div>
 
         {started && (
           <div className="live-controls">
-
             <button onClick={toggleMic}>
-              {muted
-                ? <MicOff />
-                : <Mic />}
+              {muted ? <MicOff /> : <Mic />}
             </button>
 
             <button onClick={toggleCamera}>
-              {camera
-                ? <Video />
-                : <VideoOff />}
+              {camera ? (
+                <Video />
+              ) : (
+                <VideoOff />
+              )}
             </button>
 
             <b>● LIVE</b>
@@ -1180,23 +1031,19 @@ function LiveRoom({
               onClick={stop}
             >
               {isHost
-                ? 'إنهاء البث'
-                : 'خروج'}
+                ? "إنهاء البث"
+                : "خروج"}
             </button>
-
           </div>
         )}
 
         <div className="chat">
-
           <div>
             {chat.map((item) => (
               <p key={item.id}>
                 <b>
-                  {item.user_id
-                    ? item.user_id.slice(0, 6)
-                    : 'user'}
-                </b>{' '}
+                  {item.user_id.slice(0, 6)}
+                </b>{" "}
                 {item.message}
               </p>
             ))}
@@ -1204,29 +1051,24 @@ function LiveRoom({
 
           {started && (
             <div className="chat-send">
-
               <input
                 value={message}
                 onChange={(event) =>
                   setMessage(event.target.value)
                 }
                 onKeyDown={(event) => {
-                  if (
-                    event.key === 'Enter'
-                  ) {
-                    send();
+                  if (event.key === "Enter") {
+                    sendMessage();
                   }
                 }}
                 placeholder="اكتب تعليقًا..."
               />
 
-              <button onClick={send}>
+              <button onClick={sendMessage}>
                 <Send />
               </button>
-
             </div>
           )}
-
         </div>
 
         {error && (
@@ -1234,9 +1076,7 @@ function LiveRoom({
             {error}
           </p>
         )}
-
       </div>
-
     </Modal>
   );
 }
@@ -1248,11 +1088,9 @@ function LiveRoom({
 function Studio({ close }) {
   return (
     <Modal close={close}>
-
       <h2>Creator Studio</h2>
 
       <div className="stats">
-
         <div>
           <BarChart3 />
           <b>0</b>
@@ -1270,24 +1108,16 @@ function Studio({ close }) {
           <b>500</b>
           <small>مكافآت البداية</small>
         </div>
-
       </div>
 
       <div className="studio-box">
-
-        <b>
-          برنامج صناع المحتوى
-        </b>
+        <b>برنامج صناع المحتوى</b>
 
         <p>
           انشر باستمرار، ادخل التحديات،
           وابنِ جمهورك.
-          الهدايا وتحقيق الدخل يضافان
-          بعد تفعيل الدفع ومكافحة الاحتيال.
         </p>
-
       </div>
-
     </Modal>
   );
 }
@@ -1296,27 +1126,19 @@ function Studio({ close }) {
    MODAL
 ========================= */
 
-function Modal({
-  children,
-  close
-}) {
+function Modal({ children, close }) {
   return (
     <div className="modal">
-
       <div className="modal-box">
-
         <button
           className="close"
           onClick={close}
-          aria-label="إغلاق"
         >
           <X />
         </button>
 
         {children}
-
       </div>
-
     </div>
   );
 }
@@ -1325,17 +1147,6 @@ function Modal({
    START
 ========================= */
 
-const rootElement =
-  document.getElementById('root');
-
-if (!rootElement) {
-  throw new Error(
-    'لم يتم العثور على عنصر #root في index.html'
-  );
-}
-
-createRoot(rootElement).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
+createRoot(
+  document.getElementById("root")
+).render(<App />);
