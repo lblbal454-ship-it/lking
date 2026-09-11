@@ -6,6 +6,7 @@ import { supabase } from "./supabase";
 import "./styles.css";
 
 const livekitConfigured = Boolean(import.meta.env.VITE_LIVEKIT_URL);
+const APP_URL = "https://lking.vercel.app/";
 
 async function liveToken(roomName, identity, canPublish) {
   if (!supabase) throw new Error("Supabase غير متصل.");
@@ -75,9 +76,8 @@ function Profile({ session, auth }) { return <section className="page center"><i
 
 function Auth({ close, done }) {
   const [signup, setSignup] = useState(false); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [message, setMessage] = useState(""); const [loading, setLoading] = useState(false);
-  const redirectTo = `${window.location.origin}/`;
-  const oauth = async (provider) => { if (!supabase) { setMessage("Supabase غير متصل."); return; } try { setLoading(true); setMessage(""); const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo } }); if (error) throw error; } catch (e) { setMessage(e?.message || `تعذر تسجيل الدخول عبر ${provider}.`); setLoading(false); } };
-  const submit = async () => { if (!supabase) { setMessage("Supabase غير متصل."); return; } if (!email || !password) { setMessage("أدخل البريد الإلكتروني وكلمة المرور."); return; } try { setLoading(true); const result = signup ? await supabase.auth.signUp({ email, password }) : await supabase.auth.signInWithPassword({ email, password }); if (result.error) throw result.error; if (result.data.session) done(result.data.session); else setMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني."); } catch (e) { setMessage(e?.message || "حدث خطأ أثناء تسجيل الدخول."); } finally { setLoading(false); } };
+  const oauth = async (provider) => { if (!supabase) { setMessage("Supabase غير متصل."); return; } try { setLoading(true); setMessage(""); const { error } = await supabase.auth.signInWithOAuth({ provider, options: { redirectTo: APP_URL } }); if (error) throw error; } catch (e) { setMessage(e?.message || `تعذر تسجيل الدخول عبر ${provider}.`); setLoading(false); } };
+  const submit = async () => { if (!supabase) { setMessage("Supabase غير متصل."); return; } if (!email || !password) { setMessage("أدخل البريد الإلكتروني وكلمة المرور."); return; } try { setLoading(true); const result = signup ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: APP_URL } }) : await supabase.auth.signInWithPassword({ email, password }); if (result.error) throw result.error; if (result.data.session) done(result.data.session); else setMessage("تم إنشاء الحساب. تحقق من بريدك الإلكتروني."); } catch (e) { setMessage(e?.message || "حدث خطأ أثناء تسجيل الدخول."); } finally { setLoading(false); } };
   return <Modal close={close}><div className="auth-screen"><img src="/lking-logo.svg" alt="Lking" className="auth-logo" /><h2>{signup ? "إنشاء حساب" : "تسجيل الدخول"}</h2><button className="oauth google" onClick={() => oauth("google")} disabled={loading}><strong>G</strong><span>المتابعة باستخدام Google</span></button><button className="oauth apple" onClick={() => oauth("apple")} disabled={loading}><strong></strong><span>المتابعة باستخدام Apple</span></button><div className="auth-divider"><span>أو</span></div><input placeholder="البريد الإلكتروني" type="email" value={email} onChange={(e) => setEmail(e.target.value)} /><input placeholder="كلمة المرور" type="password" value={password} onChange={(e) => setPassword(e.target.value)} /><button className="primary auth-submit" onClick={submit} disabled={loading}>{loading ? "انتظر..." : signup ? "إنشاء الحساب" : "دخول"}</button>{message && <p className="auth-message">{message}</p>}<button className="link" onClick={() => { setSignup((v) => !v); setMessage(""); }}>{signup ? "لدي حساب" : "إنشاء حساب جديد"}</button></div></Modal>;
 }
 
